@@ -1,0 +1,21 @@
+export const tourGuideImages = {
+  guide1: "https://images.unsplash.com/photo-1658048660471-ed14bcb44229?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHRvdXIlMjBndWlkZSUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwxfHx8fDE3Nzc2MzU2NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  guide2: "https://images.unsplash.com/photo-1764084052338-23a317e34ea1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBtYW4lMjB0b3VyJTIwZ3VpZGUlMjBwb3J0cmFpdCUyMHNtaWxpbmd8ZW58MXx8fHwxNzc3NjM1Njc1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  guide3: "https://images.unsplash.com/photo-1683130461600-7ce41d9c27cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHRvdXIlMjBndWlkZSUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwxfHx8fDE3Nzc2MzU2NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  guide4: "https://images.unsplash.com/photo-1764084051438-369ad6a09334?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjBtYW4lMjB0b3VyJTIwZ3VpZGUlMjBwb3J0cmFpdCUyMHNtaWxpbmd8ZW58MXx8fHwxNzc3NjM1Njc1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  guide5: "https://images.unsplash.com/photo-1723423694242-4bdb9f39a266?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw0fHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHRvdXIlMjBndWlkZSUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwxfHx8fDE3Nzc2MzU2NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  guide6: "https://images.unsplash.com/photo-1576558656222-ba66febe3dec?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw4fHxwcm9mZXNzaW9uYWwlMjBtYW4lMjB0b3VyJTIwZ3VpZGUlMjBwb3J0cmFpdCUyMHNtaWxpbmd8ZW58MXx8fHwxNzc3NjM1Njc1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  guide7: "https://images.unsplash.com/photo-1699289644436-b1b734f7e554?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw3fHxwcm9mZXNzaW9uYWwlMjB3b21hbiUyMHRvdXIlMjBndWlkZSUyMHBvcnRyYWl0JTIwc21pbGluZ3xlbnwxfHx8fDE3Nzc2MzU2NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
+  guide8: "https://images.unsplash.com/photo-1767175473698-859bc73e8e64?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxMHx8cHJvZmVzc2lvbmFsJTIwbWFuJTIwdG91ciUyMGd1aWRlJTIwcG9ydHJhaXQlMjBzbWlsaW5nfGVufDF8fHx8MTc3NzYzNTY3NXww&ixlib=rb-4.1.0&q=80&w=1080",
+};
+
+export const adventureImages = {
+  adventure1: "https://images.unsplash.com/photo-1758225351177-1069bdd4ce1b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhZHZlbnR1cmUlMjBvdXRkb29yJTIwYWN0aXZpdHl8ZW58MXx8fHwxNzc3NjMzNDg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  adventure2: "https://images.unsplash.com/photo-1564922874161-8e3994407d18?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxhZHZlbnR1cmUlMjBvdXRkb29yJTIwYWN0aXZpdHl8ZW58MXx8fHwxNzc3NjMzNDg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  adventure3: "https://images.unsplash.com/photo-1775647423221-ac87d3ec338b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxhZHZlbnR1cmUlMjBvdXRkb29yJTIwYWN0aXZpdHl8ZW58MXx8fHwxNzc3NjMzNDg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  adventure4: "https://images.unsplash.com/photo-1763639700517-5b33acc5857f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw0fHxhZHZlbnR1cmUlMjBvdXRkb29yJTIwYWN0aXZpdHl8ZW58MXx8fHwxNzc3NjMzNDg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  adventure5: "https://images.unsplash.com/photo-1766637940485-d4c56e152ad5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw1fHxhZHZlbnR1cmUlMjBvdXRkb29yJTIwYWN0aXZpdHl8ZW58MXx8fHwxNzc3NjMzNDg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  adventure6: "https://images.unsplash.com/photo-1768350329817-18f40af5faac?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw2fHxhZHZlbnR1cmUlMjBvdXRkb29yJTIwYWN0aXZpdHl8ZW58MXx8fHwxNzc3NjMzNDg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  adventure7: "https://images.unsplash.com/photo-1761026532885-c70637807881?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw3fHxhZHZlbnR1cmUlMjBvdXRkb29yJTIwYWN0aXZpdHl8ZW58MXx8fHwxNzc3NjMzNDg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+  adventure8: "https://images.unsplash.com/photo-1770564512491-e88eb93d48a3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw4fHxhZHZlbnR1cmUlMjBvdXRkb29yJTIwYWN0aXZpdHl8ZW58MXx8fHwxNzc3NjMzNDg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+};
