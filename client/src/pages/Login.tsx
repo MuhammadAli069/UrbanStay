@@ -19,30 +19,34 @@ export function Login() {
   // Get the previous location from state, default to home
   const from = (location.state as any)?.from?.pathname || "/";
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    // Create user object
-    const userData = {
-      name: formData.name || formData.email.split("@")[0],
+  try {
+    const res = await axios.post("http://localhost:5000/api/login", {
       email: formData.email,
-      avatar: "👤",
+      password: formData.password,
       role: userType,
-    };
+    });
 
-    // Log in the user
+    const userData = res.data;
+
     login(userData);
 
-    // Navigate based on user type
-    if (userType === "admin") {
+    // navigation based on role
+    if (userData.role === "admin") {
       navigate("/admin");
-    } else if (userType === "host") {
+    } else if (userData.role === "host") {
       navigate("/host");
     } else {
-      // For guests, go back to where they came from
       navigate(from, { replace: true });
     }
-  };
+
+  } catch (err) {
+    alert("Login failed");
+    console.log(err);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 flex items-center justify-center px-4 py-12">

@@ -23,31 +23,48 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    // Create user object
-    const userData = {
-      name: formData.name || formData.email.split("@")[0],
-      email: formData.email,
+  const url = isLogin
+    ? "http://localhost:5000/api/auth/login"
+    : "http://localhost:5000/api/auth/register";
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        role: userType,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.message || "Request failed");
+      return;
+    }
+
+    login({
+      name: data.name,
+      email: data.email,
       avatar: "👤",
-      role: userType,
-    };
+      role: data.role,
+    });
 
-    // Log in the user
-    login(userData);
-
-    // Close modal
     onClose();
 
-    // Navigate based on user type, or stay on current page for guests
-    if (userType === "admin") {
-      navigate("/admin");
-    } else if (userType === "host") {
-      navigate("/host");
-    }
-    // For guests, stay on the current page
-  };
+    if (data.role === "admin") navigate("/admin");
+    else if (data.role === "host") navigate("/host");
+
+  } catch (err) {
+    alert("Server not running or API error");
+  }
+};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
