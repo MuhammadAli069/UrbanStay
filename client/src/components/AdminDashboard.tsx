@@ -1,6 +1,6 @@
 import { useAuth } from "../context/AuthContext";
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Home,
   Users,
@@ -761,7 +761,7 @@ export function AdminDashboard() {
       {/* Sidebar Navigation */}
       <aside className="w-64 bg-white border-r flex flex-col fixed left-0 top-0 bottom-0 z-30">
         <div className="p-6 border-b">
-          <div className="flex items-center space-x-3">
+          <Link to="/" className="flex items-center space-x-3 rounded-lg hover:opacity-80 transition-opacity" title="Back to UrbanStay home">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center">
               <Shield className="w-7 h-7 text-white" />
             </div>
@@ -769,7 +769,7 @@ export function AdminDashboard() {
               <h1 className="font-bold text-gray-900">UrbanStay</h1>
               <p className="text-xs text-gray-600">Admin Portal</p>
             </div>
-          </div>
+          </Link>
         </div>
 
         <nav className="flex-1 p-4 overflow-y-auto">

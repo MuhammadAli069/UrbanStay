@@ -1,6 +1,6 @@
 import { useAuth } from "../context/AuthContext";
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Home,
   DollarSign,
@@ -549,7 +549,7 @@ export function HostDashboard() {
         {/* Logo */}
         <div className="p-6 border-b flex items-center justify-between">
           {!sidebarCollapsed && (
-            <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3 rounded-lg hover:opacity-80 transition-opacity" title="Back to UrbanStay home">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center">
                 <Home className="w-6 h-6 text-white" />
               </div>
@@ -557,7 +557,7 @@ export function HostDashboard() {
                 <h1 className="font-bold text-gray-900">UrbanStay</h1>
                 <p className="text-xs text-gray-500">Host Dashboard</p>
               </div>
-            </div>
+            </Link>
           )}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -599,7 +599,17 @@ export function HostDashboard() {
         </nav>
 
         {/* User Section */}
-        <div className="p-4 border-t">
+        <div className="p-4 border-t space-y-1">
+          <Link
+            to="/"
+            title="Back to site"
+            className={`w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors ${
+              sidebarCollapsed ? 'justify-center' : ''
+            }`}
+          >
+            <Home className="w-5 h-5" />
+            {!sidebarCollapsed && <span className="font-medium">Back to site</span>}
+          </Link>
           <button
             onClick={handleLogout}
             className={`w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors ${
