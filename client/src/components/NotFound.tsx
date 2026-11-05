@@ -5,7 +5,7 @@ export function NotFound() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-[70vh] bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center">
         <div className="mb-8">
           <div className="text-8xl mb-4">🏠</div>
@@ -40,7 +40,7 @@ export function NotFound() {
 
         <div className="mt-8 pt-8 border-t">
           <p className="text-sm text-gray-600">
-            Need help? <a href="#" className="text-blue-600 hover:underline">Contact Support</a>
+            Need help? <a href="mailto:support@urbanstay.com" className="text-blue-600 hover:underline">Contact Support</a>
           </p>
         </div>
       </div>

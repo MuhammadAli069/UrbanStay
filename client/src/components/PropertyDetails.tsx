@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { propertyImages } from "../data/propertyImages";
 import { useSavedProperties } from "../context/SavedPropertiesContext";
-import { allProperties } from "../data/propertiesData";
+import { useProperties } from "../context/PropertiesContext";
 import { toast } from "sonner";
 import { useAuth } from "../context/AuthContext";
 import { FAQ } from "../pages/FAQ";
@@ -73,6 +73,7 @@ const propertyFAQs: FAQItem[] = [
 ];
 
 export function PropertyDetails() {
+  const { properties: allProperties, isLoading: propertiesLoading } = useProperties();
   const navigate = useNavigate();
   const { id } = useParams();
   const { isAuthenticated } = useAuth();
@@ -92,32 +93,38 @@ export function PropertyDetails() {
   const [contributorToRemove, setContributorToRemove] = useState<number | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  const propertyId = parseInt(id || "1");
+  const propertyId = Number(id);
   const isSaved = isPropertySaved(propertyId);
 
-  const property = {
-    id: parseInt(id || "1"),
-    name: "Modern Downtown Loft",
-    location: "Manhattan, New York",
-    fullAddress: "123 West 57th Street, New York, NY 10019",
-    price: 185,
-    rating: 4.9,
-    reviews: 127,
-    bedrooms: 2,
-    bathrooms: 2,
-    guests: 4,
-    size: "1,200 sq ft",
-    images: propertyImages.gallery,
-    description:
-      "Experience luxury living in the heart of Manhattan. This stunning loft features floor-to-ceiling windows with breathtaking city views, modern furnishings, and all the amenities you need for a comfortable stay. Located within walking distance of Central Park, world-class dining, and shopping.",
-    amenities: [
-      { icon: Wifi, label: "High-Speed WiFi", description: "100 Mbps fiber connection" },
-      { icon: Coffee, label: "Full Kitchen", description: "Fully equipped with appliances" },
-      { icon: Car, label: "Free Parking", description: "Secure underground parking" },
-      { icon: Dumbbell, label: "Fitness Center", description: "24/7 access to gym" },
-    ],
+  const listing = allProperties.find((p) => p.id === propertyId);
+
+  const amenityDetails: Record<string, { icon: typeof Wifi; label: string; description: string }> = {
+    wifi: { icon: Wifi, label: "High-Speed WiFi", description: "Fast, reliable connection" },
+    kitchen: { icon: Coffee, label: "Full Kitchen", description: "Fully equipped with appliances" },
+    parking: { icon: Car, label: "Free Parking", description: "Secure parking on site" },
+    gym: { icon: Dumbbell, label: "Fitness Center", description: "24/7 access to the gym" },
+    tv: { icon: Check, label: "TV", description: "Smart TV with streaming apps" },
+    ac: { icon: Check, label: "Air Conditioning", description: "Climate control throughout" },
+    dining: { icon: Check, label: "Dining Area", description: "Space to eat together" },
+    washer: { icon: Check, label: "Washer", description: "In-unit laundry" },
+    pool: { icon: Check, label: "Pool", description: "Access to a pool" },
+    security: { icon: Shield, label: "Security System", description: "Monitored entry" },
+    heating: { icon: Check, label: "Heating", description: "Central heating" },
+    view: { icon: Check, label: "Scenic View", description: "Great views from the property" },
+  };
+
+  const property = listing && {
+    ...listing,
+    fullAddress: `${listing.location}, ${listing.state}`,
+    size: `${(listing.bedrooms * 450 + 300).toLocaleString()} sq ft`,
+    images:
+      listing.images && listing.images.length > 1
+        ? listing.images
+        : [listing.image, ...propertyImages.gallery.filter((img) => img !== listing.image)],
+    description: listing.description || `${listing.name} is a ${listing.bedrooms}-bedroom ${listing.type} in ${listing.location}, sleeping up to ${listing.guests} guests. It is thoughtfully furnished, close to local dining and transport, and has everything you need for a comfortable stay.`,
+    amenities: listing.amenities.map((a) => amenityDetails[a]).filter(Boolean),
     host: {
-      name: "Sarah Johnson",
+      name: listing.host?.name ?? "Sarah Johnson",
       avatar: "👩‍💼",
       joinedDate: "Member since 2020",
       responseRate: "100%",
@@ -126,13 +133,34 @@ export function PropertyDetails() {
     houseRules: [
       "Check-in: 3:00 PM - 10:00 PM",
       "Checkout: 11:00 AM",
-      "No smoking",
-      "No pets",
-      "No parties or events",
+      ...(listing.houseRules?.length ? listing.houseRules : ["No smoking", "No pets", "No parties or events"]),
     ],
     cancellationPolicy:
-      "Free cancellation for 48 hours. Cancel before 2:00 PM on Apr 28 for a partial refund.",
+      "Free cancellation within 48 hours of booking. Cancel at least 7 days before check-in for a partial refund.",
   };
+
+  if (!property && propertiesLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" aria-label="Loading" />
+      </div>
+    );
+  }
+
+  if (!property) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4 text-center">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Property not found</h1>
+        <p className="text-gray-600 mb-6">This listing may have been removed or the link is incorrect.</p>
+        <button
+          onClick={() => navigate("/listings")}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+        >
+          Browse all properties
+        </button>
+      </div>
+    );
+  }
 
   const calculateTotal = () => {
     if (!bookingData.checkIn || !bookingData.checkOut) return 0;
@@ -141,7 +169,7 @@ export function PropertyDetails() {
     const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
     const subtotal = nights * property.price;
     const serviceFee = Math.round(subtotal * 0.12);
-    const cleaningFee = 50;
+    const cleaningFee = property.cleaningFee ?? 50;
     return { nights, subtotal, serviceFee, cleaningFee, total: subtotal + serviceFee + cleaningFee };
   };
 
@@ -180,19 +208,21 @@ export function PropertyDetails() {
       toast.error("Please select check-in and check-out dates");
       return;
     }
+    if (new Date(bookingData.checkOut) <= new Date(bookingData.checkIn)) {
+      toast.error("Check-out must be after check-in");
+      return;
+    }
     setShowBookingDialog(true);
   };
 
   const confirmBooking = () => {
     setShowBookingDialog(false);
-    // Navigate to the new booking flow instead of old confirmation
-    navigate(`/booking/${property.id}`);
-  };
-
-  const finalizeBooking = () => {
-    // This is no longer used - keeping for backward compatibility
-    const bookingId = Math.random().toString(36).substring(7).toUpperCase();
-    navigate(`/confirmation/${bookingId}`);
+    const params = new URLSearchParams({
+      checkIn: bookingData.checkIn,
+      checkOut: bookingData.checkOut,
+      guests: bookingData.guests,
+    });
+    navigate(`/booking/${property.id}?${params.toString()}`);
   };
 
   const nextImage = () => {
@@ -736,7 +766,7 @@ export function PropertyDetails() {
                 Cancel
               </button>
               <button
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/login", { state: { from: { pathname: window.location.pathname } } })}
                 className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center gap-2"
               >
                 <LogIn className="w-5 h-5" />

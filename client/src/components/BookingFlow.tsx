@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   CreditCard,
   Smartphone,
@@ -20,6 +20,8 @@ import {
   LogIn,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useProperties } from "../context/PropertiesContext";
+import { api } from "../lib/api";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -39,7 +41,8 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Progress } from "./ui/progress";
-import { FAQ, FAQItem } from "./FAQ";
+import { FAQ } from "../pages/FAQ";
+import type { FAQItem } from "../pages/FAQ";
 
 const bookingFlowFAQs: FAQItem[] = [
   {
@@ -100,9 +103,11 @@ interface PaymentDetails {
 }
 
 export function BookingFlow() {
+  const { properties: allProperties, isLoading: propertiesLoading } = useProperties();
   const navigate = useNavigate();
   const { propertyId } = useParams();
-  const { isAuthenticated } = useAuth();
+  const [searchParams] = useSearchParams();
+  const { isAuthenticated, user } = useAuth();
 
   const [currentStep, setCurrentStep] = useState<BookingStep>("summary");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("");
@@ -111,9 +116,9 @@ export function BookingFlow() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({
-    firstName: "",
-    lastName: "",
-    email: "",
+    firstName: user?.name.split(" ")[0] ?? "",
+    lastName: user?.name.split(" ").slice(1).join(" ") ?? "",
+    email: user?.email ?? "",
     phone: "",
     specialRequests: "",
   });
@@ -133,28 +138,45 @@ export function BookingFlow() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [processingProgress, setProcessingProgress] = useState(0);
 
-  // Mock booking data (in real app, this would come from route state or context)
+  // Booking details come from the property page (?checkIn=&checkOut=&guests=).
+  const foundListing = allProperties.find((p) => p.id === Number(propertyId));
+  // Placeholder keeps the price maths below safe while listings load; we render a loader instead.
+  const listing = foundListing ?? { id: 0, name: "", location: "", image: "", price: 0, guests: 1, rating: 0, reviews: 0, cleaningFee: 0, host: undefined };
+  const today = new Date();
+  const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+  const checkIn = searchParams.get("checkIn") || isoDay(new Date(today.getTime() + 7 * 864e5));
+  const checkOutParam = searchParams.get("checkOut");
+  const checkOut =
+    checkOutParam && checkOutParam > checkIn
+      ? checkOutParam
+      : isoDay(new Date(new Date(checkIn).getTime() + 3 * 864e5));
+  const nights = Math.max(1, Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 864e5));
+  const subtotal = nights * listing.price;
+  const serviceFee = Math.round(subtotal * 0.12);
+  const cleaningFee = listing.cleaningFee ?? 50;
+
   const bookingData = {
-    propertyId: propertyId || "1",
-    propertyName: "Modern Downtown Loft",
-    propertyLocation: "Manhattan, New York",
-    propertyImage: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400",
-    checkIn: "2026-05-15",
-    checkOut: "2026-05-20",
-    guests: 2,
-    nights: 5,
-    pricePerNight: 185,
-    cleaningFee: 50,
-    serviceFee: 111,
-    total: 1086,
+    propertyId: String(listing.id),
+    propertyName: listing.name,
+    propertyLocation: listing.location,
+    propertyImage: listing.image,
+    checkIn,
+    checkOut,
+    guests: Math.min(listing.guests, Math.max(1, Number(searchParams.get("guests")) || 1)),
+    nights,
+    pricePerNight: listing.price,
+    cleaningFee,
+    serviceFee,
+    total: subtotal + serviceFee + cleaningFee,
     host: {
-      name: "Sarah Johnson",
-      rating: 4.9,
-      reviews: 127,
+      name: listing.host?.name ?? "Sarah Johnson",
+      rating: listing.rating,
+      reviews: listing.reviews,
     },
   };
 
-  const bookingReference = `URB${Date.now().toString().slice(-8)}`;
+  const [bookingReference, setBookingReference] = useState("");
+  const [bookingError, setBookingError] = useState("");
 
   // Check authentication on component mount
   useEffect(() => {
@@ -292,33 +314,47 @@ export function BookingFlow() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleProcessPayment = () => {
+  const handleProcessPayment = async () => {
     if (!validatePaymentDetails()) {
       toast.error("Please fill in all required payment details correctly");
       return;
     }
 
     setCurrentStep("processing");
-    setProcessingProgress(0);
+    setProcessingProgress(10);
+    setBookingError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
 
-    // Simulate payment processing
     const interval = setInterval(() => {
-      setProcessingProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 300);
+      setProcessingProgress((prev) => Math.min(prev + 15, 90));
+    }, 250);
 
-    setTimeout(() => {
+    // Payment is simulated: card details never leave the browser.
+    // The booking itself is created on the server, which re-checks the price and the dates.
+    try {
+      const [{ booking }] = await Promise.all([
+        api<{ booking: { reference: string } }>("/bookings", {
+          method: "POST",
+          body: JSON.stringify({
+            propertyId: listing.id,
+            checkIn: bookingData.checkIn,
+            checkOut: bookingData.checkOut,
+            guests: bookingData.guests,
+            guestInfo,
+          }),
+        }),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
+      setBookingReference(booking.reference);
+      setProcessingProgress(100);
+      setCurrentStep("success");
+    } catch (err) {
+      setBookingError(err instanceof Error ? err.message : "Something went wrong");
+      setCurrentStep("failed");
+    } finally {
       clearInterval(interval);
-      // Randomly succeed or fail for demo (90% success rate)
-      const success = Math.random() > 0.1;
-      setCurrentStep(success ? "success" : "failed");
       window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 3500);
+    }
   };
 
   const handleBack = () => {
@@ -363,6 +399,27 @@ export function BookingFlow() {
     success: 100,
     failed: 100,
   };
+
+
+  if (!foundListing) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center px-4 text-center">
+        {propertiesLoading ? (
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" aria-label="Loading" />
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Property not found</h1>
+            <button
+              onClick={() => navigate("/listings")}
+              className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
+            >
+              Browse properties
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -1118,14 +1175,16 @@ export function BookingFlow() {
                 <Card className="bg-red-50 border-red-200">
                   <CardContent className="p-8 text-center">
                     <XCircle className="w-20 h-20 text-red-600 mx-auto mb-4" />
-                    <h1 className="text-3xl mb-2">Payment Failed</h1>
+                    <h1 className="text-3xl mb-2">Booking Failed</h1>
                     <p className="text-lg text-gray-700 mb-4">
-                      We were unable to process your payment. Please try again.
+                      We couldn't complete your booking. Nothing has been charged.
                     </p>
-                    <div className="inline-block bg-white px-6 py-3 rounded-lg border border-red-200">
-                      <p className="text-sm text-gray-600 mb-1">Error Code</p>
-                      <p className="text-xl font-mono text-red-700">PAYMENT_DECLINED</p>
-                    </div>
+                    {bookingError && (
+                      <div className="inline-block bg-white px-6 py-3 rounded-lg border border-red-200">
+                        <p className="text-sm text-gray-600 mb-1">Reason</p>
+                        <p className="text-lg text-red-700">{bookingError}</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -1338,7 +1397,7 @@ export function BookingFlow() {
                 Go Back
               </button>
               <button
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/login", { state: { from: { pathname: window.location.pathname } } })}
                 className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center gap-2"
               >
                 <LogIn className="w-5 h-5" />

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Home,
@@ -43,7 +44,10 @@ import {
   ArrowDown,
   Minus,
 } from "lucide-react";
-import { propertyImages } from "../data/propertyImages";
+import { useProperties } from "../context/PropertiesContext";
+import { api } from "../lib/api";
+import { formatDay, FALLBACK_IMAGE } from "../lib/bookings";
+import type { ApiBooking } from "../lib/bookings";
 import { FAQ } from "../pages/FAQ";
 import type { FAQItem } from "../pages/FAQ";
 const hostDashboardFAQs: FAQItem[] = [
@@ -89,12 +93,71 @@ type ConfirmAction = {
   message: string;
   confirmText: string;
   cancelText: string;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   id?: number | string;
 } | null;
 
+interface ApiHostProperty {
+  id: number;
+  name: string;
+  location: string;
+  price: number;
+  rating: number;
+  reviews: number;
+  image: string;
+  status: "active" | "inactive";
+  bookings: number;
+  revenue: number;
+  nextCheckIn: string | null;
+}
+
+type HostProperty = Omit<ApiHostProperty, "nextCheckIn"> & { nextBooking: string };
+
+interface HostBooking {
+  id: string;
+  reference: string;
+  property: string;
+  propertyId: number | null;
+  guest: string;
+  guestAvatar: string;
+  checkIn: string;
+  checkOut: string;
+  nights: number;
+  amount: number;
+  status: "confirmed" | "completed" | "cancelled";
+  phone: string;
+  email: string;
+}
+
+const toHostProperty = (p: ApiHostProperty): HostProperty => ({
+  ...p,
+  image: p.image || FALLBACK_IMAGE,
+  nextBooking: p.nextCheckIn ? formatDay(p.nextCheckIn) : "None yet",
+});
+
+const toHostBooking = (b: ApiBooking): HostBooking => {
+  const name = [b.guestInfo?.firstName, b.guestInfo?.lastName].filter(Boolean).join(" ") || b.guest?.name || "Guest";
+  return {
+    id: b.id,
+    reference: b.reference,
+    property: b.property?.name ?? "Listing removed",
+    propertyId: b.property?.id ?? null,
+    guest: name,
+    guestAvatar: name.charAt(0).toUpperCase(),
+    checkIn: formatDay(b.checkIn),
+    checkOut: formatDay(b.checkOut),
+    nights: b.nights,
+    amount: b.total,
+    status: b.displayStatus === "upcoming" ? "confirmed" : b.displayStatus,
+    phone: b.guestInfo?.phone || "—",
+    email: b.guestInfo?.email || b.guest?.email || "—",
+  };
+};
+
 export function HostDashboard() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const { refresh: refreshProperties } = useProperties();
   const [activeView, setActiveView] = useState<ActiveView>("overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -107,8 +170,8 @@ export function HostDashboard() {
 
   // Host profile data
   const hostProfile = {
-    name: "John Doe",
-    email: "john.doe@urbanstay.com",
+    name: user?.name ?? "Host",
+    email: user?.email ?? "",
     phone: "+1 (555) 123-4567",
     avatar: "👤",
     joinDate: "January 2024",
@@ -216,11 +279,46 @@ export function HostDashboard() {
   ];
 
   // Sample data
+  // ---- Live data from the API ----
+  const [myProperties, setMyProperties] = useState<HostProperty[]>([]);
+  const [upcomingBookings, setUpcomingBookings] = useState<HostBooking[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  const loadHostData = useCallback(async () => {
+    try {
+      const [{ properties }, { bookings }] = await Promise.all([
+        api<{ properties: ApiHostProperty[] }>("/properties/mine"),
+        api<{ bookings: ApiBooking[] }>("/bookings/host"),
+      ]);
+      setMyProperties(properties.map(toHostProperty));
+      setUpcomingBookings(bookings.map(toHostBooking));
+    } catch (err) {
+      showNotification("error", err instanceof Error ? err.message : "Couldn't load your dashboard data");
+    } finally {
+      setDataLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    loadHostData();
+  }, [loadHostData]);
+
+  const totalEarnings = upcomingBookings
+    .filter((b) => b.status !== "cancelled")
+    .reduce((sum, b) => sum + b.amount, 0);
+  const activeBookingCount = upcomingBookings.filter((b) => b.status === "confirmed").length;
+  const ratedProperties = myProperties.filter((p) => p.rating > 0);
+  const avgRating = ratedProperties.length
+    ? ratedProperties.reduce((sum, p) => sum + p.rating, 0) / ratedProperties.length
+    : 0;
+  const totalReviews = myProperties.reduce((sum, p) => sum + p.reviews, 0);
+
   const stats = [
     {
       label: "Total Earnings",
-      value: "$45,280",
-      change: "+18.2%",
+      value: `$${totalEarnings.toLocaleString()}`,
+      change: "from all bookings",
       trend: "up",
       icon: DollarSign,
       color: "bg-emerald-50 text-emerald-600",
@@ -228,8 +326,8 @@ export function HostDashboard() {
     },
     {
       label: "Active Bookings",
-      value: "23",
-      change: "+5 this week",
+      value: String(activeBookingCount),
+      change: "upcoming stays",
       trend: "up",
       icon: Calendar,
       color: "bg-blue-50 text-blue-600",
@@ -237,8 +335,8 @@ export function HostDashboard() {
     },
     {
       label: "Avg Rating",
-      value: "4.8",
-      change: "156 reviews",
+      value: avgRating ? avgRating.toFixed(1) : "—",
+      change: `${totalReviews} reviews`,
       trend: "up",
       icon: Star,
       color: "bg-amber-50 text-amber-600",
@@ -246,99 +344,12 @@ export function HostDashboard() {
     },
     {
       label: "Properties",
-      value: "6",
-      change: "+2 this month",
+      value: String(myProperties.length),
+      change: `${myProperties.filter((p) => p.status === "active").length} active`,
       trend: "up",
       icon: Home,
       color: "bg-purple-50 text-purple-600",
       bgColor: "bg-purple-500",
-    },
-  ];
-
-  const myProperties = [
-    {
-      id: 1,
-      name: "Modern Downtown Loft",
-      location: "Manhattan, New York",
-      price: 185,
-      rating: 4.9,
-      reviews: 127,
-      bookings: 45,
-      occupancy: 85,
-      status: "active",
-      image: propertyImages.modernLoft,
-      nextBooking: "May 15",
-    },
-    {
-      id: 2,
-      name: "Luxury Penthouse Suite",
-      location: "Upper East Side, NY",
-      price: 425,
-      rating: 5.0,
-      reviews: 89,
-      bookings: 62,
-      occupancy: 92,
-      status: "active",
-      image: propertyImages.luxuryPenthouse,
-      nextBooking: "May 20",
-    },
-    {
-      id: 3,
-      name: "Cozy Urban Studio",
-      location: "Brooklyn, New York",
-      price: 125,
-      rating: 4.7,
-      reviews: 203,
-      bookings: 98,
-      occupancy: 78,
-      status: "active",
-      image: propertyImages.cozyStudio,
-      nextBooking: "May 18",
-    },
-  ];
-
-  const upcomingBookings = [
-    {
-      id: "BK-1234",
-      property: "Modern Downtown Loft",
-      propertyId: 1,
-      guest: "John Smith",
-      guestAvatar: "👨",
-      checkIn: "May 15, 2026",
-      checkOut: "May 20, 2026",
-      nights: 5,
-      amount: 1086,
-      status: "confirmed",
-      phone: "+1 234 567 8900",
-      email: "john@example.com",
-    },
-    {
-      id: "BK-1235",
-      property: "Luxury Penthouse",
-      propertyId: 2,
-      guest: "Jane Doe",
-      guestAvatar: "👩",
-      checkIn: "May 20, 2026",
-      checkOut: "May 25, 2026",
-      nights: 5,
-      amount: 2550,
-      status: "confirmed",
-      phone: "+1 234 567 8901",
-      email: "jane@example.com",
-    },
-    {
-      id: "BK-1236",
-      property: "Cozy Studio",
-      propertyId: 3,
-      guest: "Bob Wilson",
-      guestAvatar: "👨‍🦰",
-      checkIn: "May 18, 2026",
-      checkOut: "May 22, 2026",
-      nights: 4,
-      amount: 625,
-      status: "pending",
-      phone: "+1 234 567 8902",
-      email: "bob@example.com",
     },
   ];
 
@@ -434,14 +445,16 @@ export function HostDashboard() {
     setConfirmAction(action);
   };
 
-  const executeConfirmAction = () => {
-    if (confirmAction) {
-      setLoading(true);
-      setTimeout(() => {
-        confirmAction.onConfirm();
-        setLoading(false);
-        setConfirmAction(null);
-      }, 1000);
+  const executeConfirmAction = async () => {
+    if (!confirmAction) return;
+    setLoading(true);
+    try {
+      await confirmAction.onConfirm();
+    } catch (err) {
+      showNotification('error', err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setLoading(false);
+      setConfirmAction(null);
     }
   };
 
@@ -449,14 +462,27 @@ export function HostDashboard() {
     handleConfirmAction({
       type: 'delete-property',
       title: 'Delete Property?',
-      message: 'Are you sure you want to delete this property? All bookings and reviews will be removed. This action cannot be undone.',
+      message: 'Are you sure you want to delete this property? This action cannot be undone.',
       confirmText: 'Delete Property',
       cancelText: 'Cancel',
       id,
-      onConfirm: () => {
+      onConfirm: async () => {
+        await api(`/properties/${id}`, { method: "DELETE" });
+        await Promise.all([loadHostData(), refreshProperties()]);
         showNotification('success', 'Property deleted successfully');
       },
     });
+  };
+
+  const handleToggleStatus = async (property: HostProperty) => {
+    const status = property.status === "active" ? "inactive" : "active";
+    try {
+      await api(`/properties/${property.id}`, { method: "PUT", body: JSON.stringify({ status }) });
+      await Promise.all([loadHostData(), refreshProperties()]);
+      showNotification('success', status === "active" ? 'Listing is live again' : 'Listing paused. Guests can no longer book it');
+    } catch (err) {
+      showNotification('error', err instanceof Error ? err.message : 'Could not update the listing');
+    }
   };
 
   const handleCancelBooking = (bookingId: string) => {
@@ -467,8 +493,10 @@ export function HostDashboard() {
       confirmText: 'Cancel Booking',
       cancelText: 'Keep Booking',
       id: bookingId,
-      onConfirm: () => {
-        showNotification('success', 'Booking cancelled successfully');
+      onConfirm: async () => {
+        await api(`/bookings/${bookingId}/cancel`, { method: "PATCH" });
+        await loadHostData();
+        showNotification('success', 'Booking cancelled. The guest has been notified');
       },
     });
   };
@@ -494,10 +522,11 @@ export function HostDashboard() {
       confirmText: 'Sign Out',
       cancelText: 'Stay',
       onConfirm: () => {
+        logout();
         showNotification('success', 'You have been signed out successfully');
         setTimeout(() => {
-          navigate("/login");
-        }, 1000);
+          navigate("/");
+        }, 800);
       },
     });
   };
@@ -964,7 +993,7 @@ export function HostDashboard() {
                     <p className="text-blue-100">Expand your portfolio and increase your earnings</p>
                   </div>
                   <button
-                    onClick={() => showNotification('info', 'Property creation form opened')}
+                    onClick={() => navigate("/list-property")}
                     className="flex items-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-semibold shadow-lg"
                   >
                     <Plus className="w-5 h-5" />
@@ -1107,7 +1136,7 @@ export function HostDashboard() {
                   />
                 </div>
                 <button
-                  onClick={() => showNotification('info', 'Property creation form opened')}
+                  onClick={() => navigate("/list-property")}
                   className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
                 >
                   <Plus className="w-5 h-5" />
@@ -1115,7 +1144,7 @@ export function HostDashboard() {
                 </button>
               </div>
 
-              {loading ? (
+              {loading || dataLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                 </div>
@@ -1124,13 +1153,18 @@ export function HostDashboard() {
                   <Home className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl mb-2 text-gray-900">No properties yet</h3>
                   <p className="text-gray-600 mb-6">Start earning by adding your first property</p>
-                  <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                  <button
+                    onClick={() => navigate("/list-property")}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
                     Add Your First Property
                   </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {myProperties.map((property) => (
+                  {myProperties
+                    .filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((property) => (
                     <div key={property.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all group">
                       <div className="relative h-56 overflow-hidden">
                         <img
@@ -1172,8 +1206,8 @@ export function HostDashboard() {
                             <p className="font-semibold text-gray-900">{property.reviews}</p>
                           </div>
                           <div>
-                            <p className="text-xs text-gray-500 mb-1">Occupancy</p>
-                            <p className="font-semibold text-gray-900">{property.occupancy}%</p>
+                            <p className="text-xs text-gray-500 mb-1">Bookings</p>
+                            <p className="font-semibold text-gray-900">{property.bookings}</p>
                           </div>
                         </div>
 
@@ -1190,18 +1224,18 @@ export function HostDashboard() {
 
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => showNotification('info', 'Opening property view...')}
+                            onClick={() => navigate(`/property/${property.id}`)}
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
                           >
                             <Eye className="w-4 h-4" />
                             <span>View</span>
                           </button>
                           <button
-                            onClick={() => showNotification('info', 'Opening property editor...')}
+                            onClick={() => handleToggleStatus(property)}
                             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
                           >
                             <Edit className="w-4 h-4" />
-                            <span>Edit</span>
+                            <span>{property.status === "active" ? "Pause" : "Activate"}</span>
                           </button>
                           <button
                             onClick={() => handleDeleteProperty(property.id)}
@@ -1234,6 +1268,13 @@ export function HostDashboard() {
               </div>
 
               <div className="space-y-4">
+                {!dataLoading && upcomingBookings.length === 0 && (
+                  <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-12 text-center">
+                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <h3 className="text-lg text-gray-900 mb-1">No bookings yet</h3>
+                    <p className="text-gray-600">Bookings for your listings will appear here.</p>
+                  </div>
+                )}
                 {upcomingBookings.map((booking) => (
                   <div key={booking.id} className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -1289,12 +1330,14 @@ export function HostDashboard() {
                           >
                             Message
                           </button>
-                          <button
-                            onClick={() => handleCancelBooking(booking.id)}
-                            className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium"
-                          >
-                            Cancel
-                          </button>
+                          {booking.status === "confirmed" && (
+                            <button
+                              onClick={() => handleCancelBooking(booking.id)}
+                              className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium"
+                            >
+                              Cancel
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1606,8 +1649,8 @@ export function HostDashboard() {
                 <h3 className="text-lg mb-6">Earnings by Property</h3>
                 <div className="space-y-4">
                   {myProperties.map((property) => {
-                    const revenue = property.price * property.bookings * 0.8;
-                    const percentage = (revenue / 45280) * 100;
+                    const revenue = property.revenue;
+                    const percentage = totalEarnings ? (revenue / totalEarnings) * 100 : 0;
                     return (
                       <div key={property.id}>
                         <div className="flex items-center justify-between mb-2">
@@ -1653,7 +1696,7 @@ export function HostDashboard() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Display Name</label>
                     <input
                       type="text"
-                      defaultValue="John Doe"
+                      defaultValue={hostProfile.name}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -1661,7 +1704,7 @@ export function HostDashboard() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                     <input
                       type="email"
-                      defaultValue="john@example.com"
+                      defaultValue={hostProfile.email}
                       className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>

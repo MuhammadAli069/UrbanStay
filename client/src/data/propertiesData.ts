@@ -14,7 +14,13 @@ export interface Property {
   guests: number;
   image: string;
   amenities: string[];
-  type: "apartment" | "house" | "studio" | "villa" | "condo";
+  type: "apartment" | "house" | "studio" | "villa" | "condo" | "cabin";
+  // Present on listings loaded from the API
+  description?: string;
+  images?: string[];
+  cleaningFee?: number;
+  houseRules?: string[];
+  host?: { id: string; name: string };
 }
 
 export const allProperties: Property[] = [

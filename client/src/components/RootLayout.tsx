@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, Search, User, Heart, Menu, X, LogOut, Settings, LayoutDashboard, Plus, AlertCircle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "../context/AuthContext";
+import { dashboardPathFor, getInitials, useAuth } from "../context/AuthContext";
 import { LoginModal } from "../pages/LoginModal";
 import { Toaster } from "./ui/sonner";
 import { toast } from "sonner";
@@ -51,13 +51,7 @@ export function RootLayout() {
 
   const navigateToDashboard = () => {
     setProfileDropdownOpen(false);
-    if (user?.role === "admin") {
-      navigate("/admin");
-    } else if (user?.role === "host") {
-      navigate("/host");
-    } else {
-      navigate("/profile");
-    }
+    if (user) navigate(dashboardPathFor(user.role));
   };
 
   return (
@@ -129,11 +123,11 @@ export function RootLayout() {
               {!isAuthenticated ? (
                 <>
                   <button
-  onClick={() => navigate("/login")}
-  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-semibold"
->
-  Sign In
-</button>
+                    onClick={() => setLoginModalOpen(true)}
+                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-semibold"
+                  >
+                    Sign In
+                  </button>
                   <Link
                     to="/list-property"
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-semibold inline-flex items-center gap-2"
@@ -155,10 +149,12 @@ export function RootLayout() {
                   <div className="relative" ref={dropdownRef}>
                     <button
                       onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                      aria-label="Account menu"
+                      aria-expanded={profileDropdownOpen}
                       className="flex items-center space-x-2 p-1 rounded-lg hover:bg-gray-100 transition-colors"
                     >
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                        {user.avatar}
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold">
+                        {getInitials(user!.name)}
                       </div>
                     </button>
 
@@ -166,10 +162,10 @@ export function RootLayout() {
                     {profileDropdownOpen && (
                       <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 py-2">
                         <div className="px-4 py-3 border-b border-gray-200">
-                          <p className="font-semibold text-gray-900">{user.name}</p>
-                          <p className="text-sm text-gray-600">{user.email}</p>
+                          <p className="font-semibold text-gray-900">{user!.name}</p>
+                          <p className="text-sm text-gray-600 truncate">{user!.email}</p>
                           <span className="inline-block mt-1 px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
-                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                            {user!.role.charAt(0).toUpperCase() + user!.role.slice(1)}
                           </span>
                         </div>
                         <div className="py-2">
@@ -179,17 +175,21 @@ export function RootLayout() {
                           >
                             <LayoutDashboard className="w-5 h-5" />
                             <span>
-                              {user.role === "admin"
+                              {user!.role === "admin"
                                 ? "Admin Dashboard"
-                                : user.role === "host"
+                                : user!.role === "host"
                                 ? "Host Dashboard"
                                 : "My Profile"}
                             </span>
                           </button>
-                          <button className="w-full flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors">
+                          <Link
+                            to="/profile"
+                            onClick={() => setProfileDropdownOpen(false)}
+                            className="w-full flex items-center space-x-3 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
                             <Settings className="w-5 h-5" />
                             <span>Settings</span>
-                          </button>
+                          </Link>
                         </div>
                         <div className="border-t border-gray-200 pt-2">
                           <button
@@ -210,6 +210,7 @@ export function RootLayout() {
             {/* Mobile Menu Button */}
             <button
               className="md:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100"
+              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -378,7 +379,7 @@ export function RootLayout() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2026 UrbanStay. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} UrbanStay. All rights reserved.</p>
           </div>
         </div>
       </footer>
@@ -388,7 +389,7 @@ export function RootLayout() {
 
       {/* Logout Confirmation Dialog */}
       {showLogoutDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-8">
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">

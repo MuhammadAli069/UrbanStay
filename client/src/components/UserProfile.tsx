@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   User,
@@ -24,10 +24,13 @@ import {
   FileText,
   X,
 } from "lucide-react";
-import { allProperties } from "../data/propertiesData";
+import { useProperties } from "../context/PropertiesContext";
 import { useAuth } from "../context/AuthContext";
 import { useSavedProperties } from "../context/SavedPropertiesContext";
 import { toast } from "sonner";
+import { api } from "../lib/api";
+import { formatDay, FALLBACK_IMAGE } from "../lib/bookings";
+import type { ApiBooking } from "../lib/bookings";
 import { FAQ } from "../pages/FAQ";
 import type { FAQItem } from "../pages/FAQ";
 
@@ -66,7 +69,36 @@ const userProfileFAQs: FAQItem[] = [
   }
 ];
 
+interface ProfileBooking {
+  id: string; // confirmation reference shown to the guest
+  bookingId: string;
+  propertyId: number | null;
+  property: string;
+  location: string;
+  checkIn: string;
+  checkOut: string;
+  status: "upcoming" | "completed" | "cancelled";
+  image: string;
+  total: number;
+}
+
+function toProfileBooking(b: ApiBooking): ProfileBooking {
+  return {
+    id: b.reference,
+    bookingId: b.id,
+    propertyId: b.property?.id ?? null,
+    property: b.property?.name ?? "Listing removed",
+    location: b.property?.location ?? "",
+    checkIn: formatDay(b.checkIn),
+    checkOut: formatDay(b.checkOut),
+    status: b.displayStatus,
+    image: b.property?.image || FALLBACK_IMAGE,
+    total: b.total,
+  };
+}
+
 export function UserProfile() {
+  const { properties: allProperties } = useProperties();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { savedProperties: savedPropertyIds } = useSavedProperties();
@@ -82,40 +114,37 @@ export function UserProfile() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [profileData, setProfileData] = useState({
-    name: user?.name || "John Smith",
-    email: user?.email || "john.smith@email.com",
+    name: user?.name || "",
+    email: user?.email || "",
     phone: "+1 (555) 123-4567",
     location: "New York, NY",
     joinDate: "January 2024",
-    avatar: user?.avatar || "👤",
+    avatar: "👤",
     bio: "Travel enthusiast who loves exploring new cities and experiencing different cultures. Always respectful of properties and excited to meet new people!",
   });
 
   // Get saved properties from IDs
   const savedProperties = allProperties.filter(p => savedPropertyIds.includes(p.id)).slice(0, 2);
 
-  const bookings = [
-    {
-      id: "ABC123",
-      property: "Modern Downtown Loft",
-      location: "Manhattan, New York",
-      checkIn: "May 15, 2026",
-      checkOut: "May 20, 2026",
-      status: "upcoming",
-      image: allProperties[0].image,
-      total: 1086,
-    },
-    {
-      id: "XYZ789",
-      property: "Beachfront Villa",
-      location: "Santa Monica, LA",
-      checkIn: "March 10, 2026",
-      checkOut: "March 15, 2026",
-      status: "completed",
-      image: allProperties[3].image,
-      total: 1850,
-    },
-  ];
+  const [bookings, setBookings] = useState<ProfileBooking[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [bookingsError, setBookingsError] = useState("");
+
+  const loadBookings = useCallback(async () => {
+    try {
+      const { bookings } = await api<{ bookings: ApiBooking[] }>("/bookings/mine");
+      setBookings(bookings.map(toProfileBooking));
+      setBookingsError("");
+    } catch (err) {
+      setBookingsError(err instanceof Error ? err.message : "Couldn't load your bookings");
+    } finally {
+      setBookingsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBookings();
+  }, [loadBookings]);
 
   const reviews = [
     {
@@ -164,17 +193,22 @@ export function UserProfile() {
     setShowCancelDialog(true);
   };
 
-  const confirmCancelBooking = () => {
+  const confirmCancelBooking = async () => {
+    if (!bookingToCancel) return;
     setIsProcessing(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await api(`/bookings/${bookingToCancel}/cancel`, { method: "PATCH" });
+      await loadBookings();
+      toast.success("Booking cancelled successfully", {
+        description: "Your refund will be processed within 5-7 business days",
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't cancel this booking");
+    } finally {
       setIsProcessing(false);
       setShowCancelDialog(false);
       setBookingToCancel(null);
-      toast.success("Booking cancelled successfully", {
-        description: "Your refund will be processed within 5-7 business days"
-      });
-    }, 1500);
+    }
   };
 
   const handleManageBooking = (booking: any) => {
@@ -413,6 +447,24 @@ export function UserProfile() {
         {activeTab === "bookings" && (
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">My Bookings</h2>
+            {bookingsLoading ? (
+              <div className="flex justify-center py-16">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" aria-label="Loading" />
+              </div>
+            ) : bookingsError ? (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-6">{bookingsError}</div>
+            ) : bookings.length === 0 ? (
+              <div className="bg-white rounded-xl border-2 border-dashed border-gray-300 p-12 text-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No bookings yet</h3>
+                <p className="text-gray-600 mb-6">When you book a stay, it will show up here.</p>
+                <button
+                  onClick={() => navigate("/listings")}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                >
+                  Find a place to stay
+                </button>
+              </div>
+            ) : (
             <div className="space-y-6">
               {bookings.map((booking) => (
                 <div
@@ -442,10 +494,12 @@ export function UserProfile() {
                           className={`mt-2 md:mt-0 inline-block px-4 py-2 rounded-lg font-semibold ${
                             booking.status === "upcoming"
                               ? "bg-green-100 text-green-700"
+                              : booking.status === "cancelled"
+                              ? "bg-red-100 text-red-700"
                               : "bg-gray-100 text-gray-700"
                           }`}
                         >
-                          {booking.status === "upcoming" ? "Upcoming" : "Completed"}
+                          {booking.status === "upcoming" ? "Upcoming" : booking.status === "cancelled" ? "Cancelled" : "Completed"}
                         </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -469,7 +523,7 @@ export function UserProfile() {
                         </div>
                         <div className="flex gap-3">
                           <button
-                            onClick={() => navigate(`/property/${booking.id}`)}
+                            onClick={() => navigate(`/property/${booking.propertyId}`)}
                             className="px-4 py-2 border-2 border-gray-300 rounded-lg hover:border-blue-500 transition-colors font-semibold"
                           >
                             View Property
@@ -488,7 +542,7 @@ export function UserProfile() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleCancelBooking(booking.id);
+                                  handleCancelBooking(booking.bookingId);
                                 }}
                                 className="px-4 py-2 border-2 border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors font-semibold"
                               >
@@ -515,6 +569,7 @@ export function UserProfile() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 

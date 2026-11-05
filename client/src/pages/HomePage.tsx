@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, MapPin, Calendar, Users, Wifi, Coffee, Car, Dumbbell, Star, TrendingUp, Compass, UserCircle2, Clock, MapPinned, Heart } from "lucide-react";
-import { allProperties } from "../data/propertiesData";
+import { useProperties } from "../context/PropertiesContext";
 import { useSavedProperties } from "../context/SavedPropertiesContext";
 import { allAdventures } from "../data/adventuresData";
 import { allTourGuides } from "../data/tourGuidesFullData";
@@ -45,6 +45,7 @@ const homePageFAQs: FAQItem[] = [
 ];
 
 export function HomePage() {
+  const { properties: allProperties } = useProperties();
   const navigate = useNavigate();
   const { toggleSaveProperty, isPropertySaved } = useSavedProperties();
   const [searchData, setSearchData] = useState({

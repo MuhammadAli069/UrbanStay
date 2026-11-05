@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import type { User } from "../context/AuthContext";
+import { useProperties } from "../context/PropertiesContext";
+import { api } from "../lib/api";
+import { compressImage } from "../lib/images";
 import {
   Home,
   MapPin,
@@ -154,10 +158,25 @@ const listPropertyFAQs: FAQItem[] = [
   }
 ];
 
+const DRAFT_KEY = "urbanstay_listing_draft";
+
+function loadDraft(): { step: number; data: PropertyData } | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    return { step: Math.min(Math.max(Number(draft.step) || 1, 1), 7), data: { ...draft.data, photos: [] } };
+  } catch {
+    return null;
+  }
+}
+
 export function ListProperty() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const [currentStep, setCurrentStep] = useState(1);
+  const { isAuthenticated, updateUser } = useAuth();
+  const { refresh: refreshProperties } = useProperties();
+  const [savedDraft] = useState(loadDraft);
+  const [currentStep, setCurrentStep] = useState(savedDraft?.step ?? 1);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [showSaveDraftDialog, setShowSaveDraftDialog] = useState(false);
   const [showRemovePhotoDialog, setShowRemovePhotoDialog] = useState(false);
@@ -165,7 +184,7 @@ export function ListProperty() {
   const [isSaving, setIsSaving] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   
-  const [propertyData, setPropertyData] = useState<PropertyData>({
+  const [propertyData, setPropertyData] = useState<PropertyData>(savedDraft?.data ?? {
     propertyType: "",
     address: "",
     city: "",
@@ -300,14 +319,16 @@ export function ListProperty() {
   };
 
   const confirmSaveDraft = () => {
-    setIsSaving(true);
-    // Simulate saving
-    setTimeout(() => {
-      setIsSaving(false);
-      setShowSaveDraftDialog(false);
-      toast.success("Draft saved successfully! You can continue editing later.");
-      navigate("/profile");
-    }, 1500);
+    try {
+      // Photos (File objects) can't be stored, so they need re-adding later.
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ step: currentStep, data: { ...propertyData, photos: [] } }));
+      toast.success("Draft saved. You can continue from this step next time.", {
+        description: propertyData.photos.length ? "Photos aren't saved in drafts, so you'll need to add them again." : undefined,
+      });
+    } catch {
+      toast.error("Couldn't save the draft in this browser");
+    }
+    setShowSaveDraftDialog(false);
   };
 
   const handlePhotoUpload = (files: FileList | null) => {
@@ -380,14 +401,46 @@ export function ListProperty() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleFinalPublish = () => {
+  const handleFinalPublish = async () => {
     setIsSaving(true);
-    // Simulate publishing
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      const images = await Promise.all(propertyData.photos.slice(0, 8).map((file) => compressImage(file)));
+      const d = propertyData;
+      const { property, user: updatedUser } = await api<{ property: { id: number }; user: User }>("/properties", {
+        method: "POST",
+        body: JSON.stringify({
+          name: d.title.trim(),
+          description: d.description.trim(),
+          type: d.propertyType || "apartment",
+          address: d.address.trim(),
+          city: d.city.trim(),
+          state: d.state.trim(),
+          country: d.country.trim(),
+          location: [d.city.trim(), d.state.trim() || d.country.trim()].filter(Boolean).join(", "),
+          price: Number(d.pricePerNight),
+          cleaningFee: Number(d.cleaningFee) || 0,
+          bedrooms: Number(d.bedrooms) || 0,
+          bathrooms: Number(d.bathrooms) || 0,
+          guests: Number(d.guests) || 1,
+          amenities: d.amenities,
+          houseRules: d.houseRules.map((id) => HOUSE_RULES_OPTIONS.find((r) => r.id === id)?.label ?? id),
+          images,
+        }),
+      });
+      updateUser(updatedUser);
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {
+        /* ignore */
+      }
+      await refreshProperties();
       toast.success("🎉 Property published successfully!");
-      navigate("/profile");
-    }, 2000);
+      navigate(`/property/${property.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't publish your listing");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const progressPercentage = ((currentStep - 1) / (TOTAL_STEPS - 1)) * 100;
@@ -1315,7 +1368,7 @@ export function ListProperty() {
                 Go Home
               </button>
               <button
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/login", { state: { from: { pathname: window.location.pathname } } })}
                 className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center justify-center gap-2"
               >
                 <LogIn className="w-5 h-5" />

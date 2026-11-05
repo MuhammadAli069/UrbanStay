@@ -1,3 +1,4 @@
+import { useAuth } from "../context/AuthContext";
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -98,6 +99,7 @@ type DisputeDetails = {
 
 export function AdminDashboard() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [activeSection, setActiveSection] = useState<NavigationSection>("dashboard");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -745,10 +747,11 @@ export function AdminDashboard() {
       confirmText: 'Sign Out',
       cancelText: 'Cancel',
       onConfirm: () => {
+        logout();
         showNotification('success', 'You have been signed out successfully');
         setTimeout(() => {
-          navigate("/login");
-        }, 1000);
+          navigate("/");
+        }, 800);
       },
     });
   };

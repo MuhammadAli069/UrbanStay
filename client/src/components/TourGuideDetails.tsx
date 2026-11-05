@@ -494,7 +494,7 @@ export default function TourGuideDetails() {
                 Cancel
               </button>
               <button
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/login", { state: { from: { pathname: window.location.pathname } } })}
                 className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center justify-center gap-2"
               >
                 <LogIn className="w-5 h-5" />

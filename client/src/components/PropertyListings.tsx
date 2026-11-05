@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Star, MapPin, Wifi, Coffee, Car, Users, Bed, Bath, Heart, SlidersHorizontal, X, Zap, Shield, CheckCircle, RotateCcw } from "lucide-react";
-import { allProperties } from "../data/propertiesData";
+import { useProperties } from "../context/PropertiesContext";
 import { useSavedProperties } from "../context/SavedPropertiesContext";
 import { toast } from "sonner";
 import { FAQ } from "../pages/FAQ";
@@ -65,6 +65,7 @@ const propertyListingsFAQs: FAQItem[] = [
 ];
 
 export function PropertyListings() {
+  const { properties: allProperties } = useProperties();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toggleSaveProperty, isPropertySaved } = useSavedProperties();

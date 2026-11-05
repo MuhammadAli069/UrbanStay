@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, Star, MapPin, Bed, Bath, Users, Wifi, Coffee, Car, Trash2, AlertCircle } from "lucide-react";
 import { useSavedProperties } from "../context/SavedPropertiesContext";
-import { allProperties } from "../data/propertiesData";
+import { useProperties } from "../context/PropertiesContext";
 import { toast } from "sonner";
 import { FAQ } from "../pages/FAQ";
 import type { FAQItem } from "../pages/FAQ";
@@ -43,6 +43,7 @@ const savedPropertiesFAQs: FAQItem[] = [
 ];
 
 export function SavedProperties() {
+  const { properties: allProperties } = useProperties();
   const navigate = useNavigate();
   const { savedProperties, toggleSaveProperty } = useSavedProperties();
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);

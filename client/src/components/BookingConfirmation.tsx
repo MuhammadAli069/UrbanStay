@@ -12,6 +12,7 @@ import {
   CreditCard,
 } from "lucide-react";
 import { propertyImages } from "../data/propertyImages";
+import { toast } from "sonner";
 
 export function BookingConfirmation() {
   const navigate = useNavigate();
@@ -39,11 +40,12 @@ export function BookingConfirmation() {
   };
 
   const handleDownloadConfirmation = () => {
-    alert("Downloading confirmation PDF...");
+    // The browser's print dialog can save the confirmation as a PDF.
+    window.print();
   };
 
   const handleEmailConfirmation = () => {
-    alert("Confirmation email sent!");
+    toast.success("Confirmation email sent!");
   };
 
   return (
