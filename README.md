@@ -1,5 +1,7 @@
 # UrbanStay
 
+**Live demo:** https://urbanstay-nine.vercel.app · demo host login: `host@urbanstay.demo` / `DemoHost123`
+
 A full-stack stays platform: guests browse and book urban properties, adventures and local tour guides; hosts list their places; admins manage the platform.
 
 **Stack:** React 18 + TypeScript + Vite + Tailwind CSS (client) · Express 5 + MongoDB/Mongoose + JWT (server)
